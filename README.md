@@ -1,6 +1,11 @@
 # emp_status_prediction
 
 This app predicts if an employee/employees will stay in the company or leave the company based on data entered manually or by uploading csv file for more than one employees
+Interactive Input: Manual input or CSV upload.
+Consistent Preprocessing: Ensures data is processed the same way as during training.
+Visual Insights: Bar and pie charts for easy interpretation of results.
+![image](https://github.com/user-attachments/assets/6626f5c6-ea40-474f-943f-7e9879ecb260)
+
 
 **Steps for creation of the App**
 

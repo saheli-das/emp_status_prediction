@@ -1,21 +1,18 @@
 # emp_status_prediction
+ company provided the data of its employees from 1980 to 2013 in 6 CSV files for analysis of employee data with the expectation to create an App for prediction of it's employees attrition
+ 
+As part of this project I've created this Machine Learning App to predict if an employee/employees will stay in the company or leave the company. This App has the following key features: 
+Interactive Input: Manual input of any employee or CSV upload for more than one employees
 
-This app predicts if an employee/employees will stay in the company or leave the company based on data entered manually or by uploading csv file for more than one employees
-Interactive Input: Manual input or CSV upload.
-Consistent Preprocessing: Ensures data is processed the same way as during training.
+Consistent Preprocessing: Ensures data is processed the same way as during training
+
 Visual Insights: Bar and pie charts for easy interpretation of results.
-![image](https://github.com/user-attachments/assets/6626f5c6-ea40-474f-943f-7e9879ecb260)
-
 
 **Steps for creation of the App**
 
-**Load Saved Artifacts:**
+**Load Saved Artifacts:**Load the trained model (best_model_new.joblib), preprocessing pipeline (transformer_new.joblib), important features (important_features_new.joblib), and percentiles (percentiles_new.joblib).
 
-Load the trained model (best_model_new.joblib), preprocessing pipeline (transformer_new.joblib), important features (important_features_new.joblib), and percentiles (percentiles_new.joblib).
-
-**Set Up Streamlit Interface:**
-
-Add a title and radio button for input method selection: Manual Input or Upload CSV.
+**Set Up Streamlit Interface:**Add a title and radio button for input method selection: Manual Input or Upload CSV.
 
 **Manual Input Mode:**
 

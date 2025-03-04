@@ -53,7 +53,7 @@ if option == "Manual Input":
         "Last_performance_rating": last_performance_rating,
         "title": title,  # Include missing columns
         "dept_names": ", ".join(dept_names),  # Join selected departments with a comma
-        "no_of_departments": no_of_departments  # Include missing columns
+        "no_of_departments": no_of_departments  
     }
 
     # Convert input data to a DataFrame

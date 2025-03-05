@@ -7,10 +7,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 # Load the saved model and preprocessing objects
-best_model_new = joblib.load('best_model_new.joblib')
-transformer_new = joblib.load('transformer_new.joblib')
-important_features_new = joblib.load('important_features_new.joblib')
-percentiles_new = joblib.load('percentiles_new.joblib')
+best_model_app = joblib.load('best_model_app.joblib')
+transformer_app = joblib.load('transformer_app.joblib')
+important_features_app = joblib.load('important_features_app.joblib')
+percentiles_app = joblib.load('percentiles_app.joblib')
 
 # Streamlit app title
 st.title("Prediction App")
@@ -53,7 +53,7 @@ if option == "Manual Input":
         "Last_performance_rating": last_performance_rating,
         "title": title,  # Include missing columns
         "dept_names": ", ".join(dept_names),  # Join selected departments with a comma
-        "no_of_departments": no_of_departments  
+        "no_of_departments": no_of_departments  # Include missing columns
     }
 
     # Convert input data to a DataFrame
@@ -61,7 +61,7 @@ if option == "Manual Input":
 
     # Apply the same feature engineering steps as during training
     # Create tenure_category using percentiles
-    input_df['tenure_category'] = pd.cut(input_df['tenure'], bins=percentiles_new, labels=['Low', 'Medium', 'High', 'Very High'], include_lowest=True)
+    input_df['tenure_category'] = pd.cut(input_df['tenure'], bins=percentiles_app, labels=['Low', 'Medium', 'High', 'Very High'], include_lowest=True)
 
     # Create age_group based on bins
     bins = [20, 35, 50, float('inf')]
@@ -71,19 +71,19 @@ if option == "Manual Input":
     # Add a predict button
     if st.button("Predict"):
         # Transform the input data using the saved transformer
-        input_transformed = transformer_new.transform(input_df)
+        input_transformed = transformer_app.transform(input_df)
 
         # Create a DataFrame from the transformed data
-        input_transformed_df = pd.DataFrame(input_transformed, columns=transformer_new.get_feature_names_out())
+        input_transformed_df = pd.DataFrame(input_transformed, columns=transformer_app.get_feature_names_out())
 
         # Filter features based on importance
-        input_filtered = input_transformed_df[important_features_new]
+        input_filtered = input_transformed_df[important_features_app]
 
         # Make predictions
-        predictions = best_model_new.predict(input_filtered)
+        predictions = best_model_app.predict(input_filtered)
 
         # Map prediction value to label
-        prediction_label = "left" if predictions[0] == 1 else "stayed"
+        prediction_label = "leave" if predictions[0] == 1 else "stay"
 
         # Display the prediction
         st.header("Prediction Result")
@@ -102,7 +102,7 @@ elif option == "Upload CSV":
         # Check if required columns are present
         required_columns = [
             "hire_date", "last_date", "birth_date", "sex", "no_of_projects", 
-            "salary", "Last_performance_rating", "title", "dept_names", "no_of_departments"
+            "salary", "Last_performance_rating", "title", "dept_names", "no_of_departments", "tenure", "age"
         ]
         if not all(column in csv_df.columns for column in required_columns):
             st.error(f"The CSV file must contain the following columns: {required_columns}")
@@ -111,52 +111,55 @@ elif option == "Upload CSV":
             st.write("Processing CSV file...")
             progress_bar = st.progress(0)
 
-            # Convert date columns to datetime
-            csv_df['hire_date'] = pd.to_datetime(csv_df['hire_date'])
-            csv_df['last_date'] = pd.to_datetime(csv_df['last_date'])
-            csv_df['birth_date'] = pd.to_datetime(csv_df['birth_date'])
-
-            # Calculate tenure and age
-            max_last_date = csv_df['last_date'].max()
-            csv_df['tenure'] = (csv_df['last_date'].fillna(max_last_date) - csv_df['hire_date']).dt.days / 365
-            csv_df['age'] = (csv_df['last_date'].fillna(max_last_date) - csv_df['birth_date']).dt.days / 365
-
-            # Apply additional steps
-            csv_df['tenure'] = (csv_df['tenure'] * 12).round().astype(int)  # Convert tenure to months
-            csv_df['age'] = csv_df['age'].round().astype(int)  # Round age to the nearest integer
-
-            # Convert 'left' column to integer (if it exists)
-            if 'left' in csv_df.columns:
-                csv_df['left'] = csv_df['left'].astype(int)
-
-            # Drop unnecessary columns
-            columns_to_drop = ['emp_no', 'first_name', 'last_name', 'emp_title_id', 'dept_nos', 'birth_date', 'last_date', 'hire_date', 'left']
-            csv_df.drop(columns=[col for col in columns_to_drop if col in csv_df.columns], inplace=True)
+            # Drop unnecessary columns (including 'left' if it exists)
+            columns_to_drop = ['emp_no', 'first_name', 'last_name', 'emp_title_id', 'dept_nos', 'birth_date', 'last_date', 'hire_date']
+            columns_to_drop = [col for col in columns_to_drop if col in csv_df.columns]
+            csv_df.drop(columns=columns_to_drop, inplace=True)
 
             # Apply the same feature engineering steps as during training
-            csv_df['tenure_category'] = pd.cut(csv_df['tenure'], bins=percentiles_new, labels=['Low', 'Medium', 'High', 'Very High'], include_lowest=True)
+            csv_df['tenure_category'] = pd.cut(csv_df['tenure'], bins=percentiles_app, labels=['Low', 'Medium', 'High', 'Very High'], include_lowest=True)
             bins = [20, 35, 50, float('inf')]
             labels = ['20-35', '35-50', '50+']
             csv_df['age_group'] = pd.cut(csv_df['age'], bins=bins, labels=labels, right=False)
 
-            # Display the processed data
-            st.write("Processed Data:")
+            # Debug: Print processed DataFrame
+            st.write("Processed DataFrame after feature engineering:")
             st.write(csv_df)
+
+            # Step 3: Drop Unnecessary Columns
+            columns_to_remove = ['tenure', 'age']
+            csv_df.drop(columns=columns_to_remove, inplace=True)
 
             # Transform the entire DataFrame at once
             st.write("Transforming data...")
-            input_transformed = transformer_new.transform(csv_df)
-            input_transformed_df = pd.DataFrame(input_transformed, columns=transformer_new.get_feature_names_out())
+            input_transformed = transformer_app.transform(csv_df)
+            input_transformed_df = pd.DataFrame(input_transformed, columns=transformer_app.get_feature_names_out())
+
+            # Debug: Print transformed DataFrame
+            #st.write("Transformed DataFrame:")
+            #st.write(input_transformed_df)
 
             # Filter features based on importance
-            input_filtered = input_transformed_df[important_features_new]
+            input_filtered = input_transformed_df[important_features_app]
+
+            # Debug: Print filtered DataFrame
+            #st.write("Filtered DataFrame (important features):")
+            #st.write(input_filtered)
 
             # Make predictions for the entire DataFrame
             st.write("Making predictions...")
-            predictions = best_model_new.predict(input_filtered)
+            predictions = best_model_app.predict(input_filtered)
 
-            # Add predictions to the DataFrame
-            csv_df['prediction'] = ["left" if pred == 1 else "stayed" for pred in predictions]
+            # Get predicted probabilities for the "left" class (class 1)
+            probabilities = best_model_app.predict_proba(input_filtered)[:, 1]
+
+            # Add predictions and probabilities to the DataFrame
+            csv_df['prediction'] = ["leave" if pred == 1 else "stay" for pred in predictions]
+            csv_df['probability_of_leaving'] = probabilities  # Add probability of leaving
+
+            # Display DataFrame in Streamlit
+            st.write("Predictions with Probabilities:")
+            st.dataframe(csv_df)
 
             # Update progress
             progress_bar.progress(100)
@@ -174,7 +177,7 @@ elif option == "Upload CSV":
             # Bar chart: Number of employees who left/stayed by sex
             fig, ax = plt.subplots(figsize=(10, 6))
             sns.barplot(data=result_df, x='prediction', y='count', hue='sex', ax=ax)
-            ax.set_title("Number of Employees Who Left/Stayed by Sex")
+            ax.set_title("Number of Employees Who Leave/Stay by Sex")
             ax.set_xlabel("Prediction")
             ax.set_ylabel("Count")
             st.pyplot(fig)
@@ -183,5 +186,5 @@ elif option == "Upload CSV":
             overall_counts = result_df.groupby('prediction')['count'].sum()
             fig, ax = plt.subplots(figsize=(6, 6))
             ax.pie(overall_counts, labels=overall_counts.index, autopct='%1.1f%%', startangle=90)
-            ax.set_title("Overall Left vs Stayed")
+            ax.set_title("Overall Leave vs Stay")
             st.pyplot(fig)

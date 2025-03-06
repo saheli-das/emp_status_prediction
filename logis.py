@@ -142,9 +142,7 @@ if st.session_state["logged_in"]:
                 labels = ['20-35', '35-50', '50+']
                 csv_df['age_group'] = pd.cut(csv_df['age'], bins=bins, labels=labels, right=False)
 
-                # Debug: Print processed DataFrame
-                st.write("Processed DataFrame after feature engineering:")
-                st.write(csv_df)
+
 
                 # Step 3: Drop Unnecessary Columns
                 columns_to_remove = ['tenure', 'age']
@@ -155,16 +153,12 @@ if st.session_state["logged_in"]:
                 input_transformed = transformer_app.transform(csv_df)
                 input_transformed_df = pd.DataFrame(input_transformed, columns=transformer_app.get_feature_names_out())
 
-                # Debug: Print transformed DataFrame
-                st.write("Transformed DataFrame:")
-                st.write(input_transformed_df)
+
 
                 # Filter features based on importance
                 input_filtered = input_transformed_df[important_features_app]
 
-                # Debug: Print filtered DataFrame
-                st.write("Filtered DataFrame (important features):")
-                st.write(input_filtered)
+
 
                 # Make predictions for the entire DataFrame
                 st.write("Making predictions...")

@@ -103,26 +103,23 @@ if st.session_state["logged_in"]:
        
         
        
-        age_bins = [0, 20, 35, 50, float('inf')]
-        age_labels = ['under_20', '20-35', '35-50', '50+']
+        
+        age_bins = [20, 35, 50, float('inf')]  # Exactly as in your model training
+        age_labels = ['20-35', '35-50', '50+']  # Must match original categories
         
         
-        try:
-            input_df['age_group'] = pd.cut(
-                input_df['age'],
-                bins=age_bins,
-                labels=age_labels,
-                right=False,
-                include_lowest=True
-            )
-            
-           
-            input_df['age_group'] = input_df['age_group'].cat.add_categories(['invalid_age']).fillna('under_20')
-            
-        except Exception as e:
-            st.error(f"Age processing error: {str(e)}")
-            # Fallback to default category
-            input_df['age_group'] = '20-35'
+        input_df['age_group'] = pd.cut(
+            input_df['age'],
+            bins=age_bins,
+            labels=age_labels,
+            right=False
+        )
+        
+        ## Force any ages below 20 into the '20-35' category
+        input_df.loc[input_df['age'] < 20, 'age_group'] = '20-35'
+        
+        ## Handle any remaining NaN values
+        input_df['age_group'] = input_df['age_group'].cat.add_categories(['20-35']).fillna('20-35')
 
         # Add a predict button
         if st.button("Predict"):

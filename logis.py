@@ -54,14 +54,39 @@ if st.session_state["logged_in"]:
             "Senior Engineer", "Senior Staff", "Assistant Engineer"
         ])
         
-        # Use multiselect for department names
+        # Updated department selection and processing
         dept_names = st.sidebar.multiselect("Department Names", [
-            "Marketing", "Human Resources", "Research", "Sales", 
-            "Quality Management", "Production", "development", 
+            "Marketing", "Human Resources", "Research", "Sales",
+            "Quality Management", "Production", "development",
             "Finance", "Customer Service"
-        ], default=["Marketing"])  # Set a default value if needed
+        ], default=["Marketing"])
         
-        no_of_departments = st.sidebar.number_input("Number of Departments", min_value=1, max_value=10, value=2)
+        # Format departments exactly as model expects
+        if len(dept_names) > 1:
+            # If multiple departments, format with comma+space like training data
+            input_data['dept_names'] = ", ".join(sorted(dept_names))  # Sorted for consistency
+        else:
+            # Single department - just use the name
+            input_data['dept_names'] = dept_names[0] if dept_names else "Marketing"
+
+        # Ensure no_of_departments matches
+        no_of_departments = len(dept_names)
+        
+        # Add validation for known department combinations
+        known_department_combinations = [
+            "Marketing", 
+            "Human Resources",
+            "Research",
+            "Sales",
+            "Quality Management",
+            "Production",
+            "development",
+            "Finance",
+            "Customer Service",
+            "Marketing, Human Resources",
+            "Production, development"
+            # Add all other combinations that exist in your training data
+        ]
 
         # Create a dictionary from the input data
         input_data = {
@@ -71,58 +96,23 @@ if st.session_state["logged_in"]:
             "no_of_projects": no_of_projects,
             "salary": salary,
             "Last_performance_rating": last_performance_rating,
-            "title": title,  # Include missing columns
-            # In your Manual Input section, modify the department processing:
-
-            # 1. Get department selections
-            dept_names = st.sidebar.multiselect("Department Names", [
-                "Marketing", "Human Resources", "Research", "Sales",
-                "Quality Management", "Production", "development",
-                "Finance", "Customer Service"
-            ], default=["Marketing"])
-            
-            # 2. Format departments EXACTLY as your model expects
-            if len(dept_names) > 1:
-                # If multiple departments, format with comma+space like your training data
-                input_data['dept_names'] = ", ".join(sorted(dept_names))  # Sorted for consistency
-            else:
-                # Single department - just use the name
-                input_data['dept_names'] = dept_names[0] if dept_names else "Marketing"
-            
-            # 3. Ensure no_of_departments matches
-            input_data['no_of_departments'] = len(dept_names)
-            
-            # 4. Add validation to prevent unseen department combinations
-            known_department_combinations = [
-                "Marketing", 
-                "Human Resources",
-                "Research",
-                # Add all other SINGLE departments
-                "Marketing, Human Resources",  # Add KNOWN combinations from your training data
-                "Production, development",
-                # Add all other combinations that exist in your training data
-            ]
-            
-            if input_data['dept_names'] not in known_department_combinations:
-                st.warning(f"""Warning: Department combination '{input_data['dept_names']}' 
-                           was not in the training data. Results may be unreliable.""")
-            "no_of_departments": no_of_departments  # Include missing columns
+            "title": title,
+            "dept_names": input_data['dept_names'],
+            "no_of_departments": no_of_departments
         }
+
+        # Show warning if department combination wasn't in training data
+        if input_data['dept_names'] not in known_department_combinations:
+            st.warning(f"Warning: Department combination '{input_data['dept_names']}' was not in the training data. Results may be unreliable.")
 
         # Convert input data to a DataFrame
         input_df = pd.DataFrame([input_data])
 
         # Apply the same feature engineering steps as during training
-       
-       
-        
-       
-        # 2. Create adjusted bins that handle all cases:
         adjusted_bins = percentiles_app.copy()
         adjusted_bins[0] = -float('inf')  # Catch any values below original minimum
         adjusted_bins[-1] = float('inf')   # Catch any values above original maximum
         
-        # 3. Apply the categorization
         input_df['tenure_category'] = pd.cut(
             input_df['tenure'],
             bins=adjusted_bins,
@@ -130,15 +120,8 @@ if st.session_state["logged_in"]:
             include_lowest=True
         )
         
-        # 4. Handle any remaining NaN values (just in case)
         input_df['tenure_category'] = input_df['tenure_category'].cat.add_categories(['Invalid']).fillna('Invalid')
 
-       
-        
-       
-        
-       
-       # Create age_group based on bins
         bins = [20, 35, 50, float('inf')]
         labels = ['20-35', '35-50', '50+']
         input_df['age_group'] = pd.cut(input_df['age'], bins=bins, labels=labels, right=False)
@@ -197,8 +180,6 @@ if st.session_state["logged_in"]:
                 labels = ['20-35', '35-50', '50+']
                 csv_df['age_group'] = pd.cut(csv_df['age'], bins=bins, labels=labels, right=False)
 
-
-
                 # Step 3: Drop Unnecessary Columns
                 columns_to_remove = ['tenure', 'age']
                 csv_df.drop(columns=columns_to_remove, inplace=True)
@@ -208,12 +189,8 @@ if st.session_state["logged_in"]:
                 input_transformed = transformer_app.transform(csv_df)
                 input_transformed_df = pd.DataFrame(input_transformed, columns=transformer_app.get_feature_names_out())
 
-
-
                 # Filter features based on importance
                 input_filtered = input_transformed_df[important_features_app]
-
-
 
                 # Make predictions for the entire DataFrame
                 st.write("Making predictions...")

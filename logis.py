@@ -101,19 +101,27 @@ if st.session_state["logged_in"]:
         input_df['tenure_category'] = input_df['tenure_category'].cat.add_categories(['Invalid']).fillna('Invalid')
 
        
-        age_bins = [-float('inf'), 20, 35, 50, float('inf')]
-        age_labels = ['<20', '20-35', '35-50', '50+']
+        
+        age_bins = [0, 20, 35, 50, float('inf')]
+        age_labels = ['under_20', '20-35', '35-50', '50+']
         
         
-        input_df['age_group'] = pd.cut(
-            input_df['age'],
-            bins=age_bins,
-            labels=age_labels,
-            right=False
-        ).astype(str)  
-        
-        
-        input_df['age_group'] = input_df['age_group'].replace('nan', '<20')  # Force <20 category for very low values
+        try:
+            input_df['age_group'] = pd.cut(
+                input_df['age'],
+                bins=age_bins,
+                labels=age_labels,
+                right=False,
+                include_lowest=True
+            )
+            
+          
+            input_df['age_group'] = input_df['age_group'].cat.add_categories(['invalid_age']).fillna('under_20')
+            
+        except Exception as e:
+            st.error(f"Age processing error: {str(e)}")
+            # Fallback to default category
+            input_df['age_group'] = '20-35'  
 
         # Add a predict button
         if st.button("Predict"):

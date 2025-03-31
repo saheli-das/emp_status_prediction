@@ -105,25 +105,10 @@ if st.session_state["logged_in"]:
        
         
        
-        input_df['age_group'] = pd.Categorical(
-            input_df['age_group'],
-            categories=['20-35', '35-50', '50+'],  # Your original categories
-            ordered=True
-        )
-        
-        #  Handle ages below 20 by mapping to '20-35' BEFORE categorization
-        input_df.loc[input_df['age'] < 20, 'age_group'] = '20-35'
-        
-     
-        input_df['age_group'] = pd.cut(
-            input_df['age'],
-            bins=[20, 35, 50, float('inf')],
-            labels=['20-35', '35-50', '50+'],
-            right=False
-        )
-        
-        
-        input_df['age_group'] = input_df['age_group'].fillna('20-35')
+       # Create age_group based on bins
+        bins = [20, 35, 50, float('inf')]
+        labels = ['20-35', '35-50', '50+']
+        input_df['age_group'] = pd.cut(input_df['age'], bins=bins, labels=labels, right=False)
 
         # Add a predict button
         if st.button("Predict"):

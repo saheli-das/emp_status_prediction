@@ -80,8 +80,18 @@ if st.session_state["logged_in"]:
         input_df = pd.DataFrame([input_data])
 
         # Apply the same feature engineering steps as during training
-        # Create tenure_category using percentiles
-        input_df['tenure_category'] = pd.cut(input_df['tenure'], bins=percentiles_app, labels=['Low', 'Medium', 'High', 'Very High'], include_lowest=True)
+       
+       
+        
+       
+        # Ensure the last percentile is large enough to handle any input
+        adjusted_percentiles = percentiles_app.copy()
+        adjusted_percentiles[-1] = float('inf')  # Make the last bin extend to infinity
+        
+        input_df['tenure_category'] = pd.cut(input_df['tenure'], 
+                                            bins=adjusted_percentiles, 
+                                            labels=['Low', 'Medium', 'High', 'Very High'], 
+                                            include_lowest=True)
 
         # Create age_group based on bins
         bins = [20, 35, 50, float('inf')]

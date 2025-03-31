@@ -30,6 +30,11 @@ if st.session_state["logged_in"]:
     important_features_app = joblib.load('important_features_app.joblib')
     percentiles_app = joblib.load('percentiles_app.joblib')
 
+    # Get all department names the model was trained on
+    transformer_features = transformer_app.get_feature_names_out()
+    trained_departments = [f.replace('dept_names_', '') 
+                          for f in transformer_features if f.startswith('dept_names_')]
+
     # Streamlit app title
     st.title("Employee Status Prediction App")
 
@@ -50,13 +55,8 @@ if st.session_state["logged_in"]:
             "Senior Engineer", "Senior Staff", "Assistant Engineer"
         ])
         
-        # Department selection with all possible departments
-        all_departments = [
-            "Marketing", "Human Resources", "Research", "Sales", 
-            "Quality Management", "Production", "development", 
-            "Finance", "Customer Service"
-        ]
-        dept_names = st.sidebar.multiselect("Department Names", all_departments, default=["Marketing"])
+        # Department selection
+        dept_names = st.sidebar.multiselect("Department Names", trained_departments, default=[trained_departments[0]])
         no_of_departments = st.sidebar.number_input("Number of Departments", min_value=1, max_value=10, value=len(dept_names))
 
         # Create a dictionary from the input data
@@ -98,15 +98,19 @@ if st.session_state["logged_in"]:
                 # Make a copy of the input data
                 input_df_transformed = input_df.copy()
                 
-                # Get all expected feature names from the transformer
-                transformer_features = transformer_app.get_feature_names_out()
+                # Create all expected department columns
+                for dept in trained_departments:
+                    input_df_transformed[f"dept_names_{dept}"] = input_df_transformed['dept_names'].apply(
+                        lambda x: 1 if dept in x.split(', ') else 0
+                    )
                 
-                # Process department names - let the transformer handle this
-                # Don't drop dept_names - the transformer expects it
+                # Now safely drop the original columns
+                cols_to_drop = ['dept_names', 'tenure', 'age']
+                input_df_transformed.drop(columns=[col for col in cols_to_drop if col in input_df_transformed.columns], inplace=True)
                 
-                # Transform the input data using the saved transformer
+                # Transform the input data
                 input_transformed = transformer_app.transform(input_df_transformed)
-                input_transformed_df = pd.DataFrame(input_transformed, columns=transformer_features)
+                input_transformed_df = pd.DataFrame(input_transformed, columns=transformer_app.get_feature_names_out())
 
                 # Filter features based on importance
                 input_filtered = input_transformed_df[important_features_app]
@@ -165,10 +169,16 @@ if st.session_state["logged_in"]:
                         right=False
                     )
                     
-                    # Drop only tenure and age (keep dept_names for transformer)
-                    csv_df.drop(columns=['tenure', 'age'], inplace=True)
+                    # Create department columns
+                    for dept in trained_departments:
+                        csv_df[f"dept_names_{dept}"] = csv_df['dept_names'].apply(
+                            lambda x: 1 if str(dept) in str(x).split(', ') else 0
+                        )
+                    
+                    # Now drop processed columns
+                    csv_df.drop(columns=['dept_names', 'tenure', 'age'], inplace=True)
 
-                    # Transform data - let transformer handle dept_names
+                    # Transform data
                     input_transformed = transformer_app.transform(csv_df)
                     input_transformed_df = pd.DataFrame(
                         input_transformed, 

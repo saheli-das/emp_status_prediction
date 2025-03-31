@@ -47,29 +47,31 @@ if st.session_state["logged_in"]:
         no_of_projects = st.sidebar.number_input("Number of Projects", min_value=1, max_value=100, value=5)
         salary = st.sidebar.number_input("Salary", min_value=0, value=50000)
         last_performance_rating = st.sidebar.selectbox("Last Performance Rating", ['PIP', 'C', 'B', 'S', 'A'])
-
-        # Add missing columns with default values
         title = st.sidebar.selectbox("Title", [
             "Manager", "Engineer", "Technique Leader", "Staff", 
             "Senior Engineer", "Senior Staff", "Assistant Engineer"
         ])
         
-        # Department selection and processing
-        dept_names = st.sidebar.multiselect("Department Names", [
+        # Department selection
+        dept_options = [
             "Marketing", "Human Resources", "Research", "Sales",
             "Quality Management", "Production", "development",
             "Finance", "Customer Service"
-        ], default=["Marketing"])
+        ]
+        dept_names = st.sidebar.multiselect("Department Names", dept_options, default=["Marketing"])
         
+        # Automatically calculate number of departments
+        no_of_departments = len(dept_names)
+        st.sidebar.write(f"Number of Departments: {no_of_departments}")
+
         # Format departments
-        if len(dept_names) > 1:
+        if len(dept_names) > 0:
             formatted_dept = ", ".join(sorted(dept_names))  # Sorted for consistency
         else:
-            formatted_dept = dept_names[0] if dept_names else "Marketing"
-        
-        no_of_departments = len(dept_names)
+            formatted_dept = "Marketing"  # Default value if none selected
+            no_of_departments = 1
 
-        # Create a dictionary from the input data
+        # Create input data dictionary
         input_data = {
             "tenure": tenure,
             "age": age,

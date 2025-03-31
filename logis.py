@@ -25,15 +25,25 @@ if not st.session_state["logged_in"]:
 # Show App Functionality Only If Logged In
 if st.session_state["logged_in"]:
     # Load the saved model and preprocessing objects
-    best_model_app = joblib.load('best_model_app.joblib')
-    transformer_app = joblib.load('transformer_app.joblib')
-    important_features_app = joblib.load('important_features_app.joblib')
-    percentiles_app = joblib.load('percentiles_app.joblib')
-
-    # Get all department names the model was trained on
-    transformer_features = transformer_app.get_feature_names_out()
-    trained_departments = [f.replace('dept_names_', '') 
-                          for f in transformer_features if f.startswith('dept_names_')]
+    try:
+        best_model_app = joblib.load('best_model_app.joblib')
+        transformer_app = joblib.load('transformer_app.joblib')
+        important_features_app = joblib.load('important_features_app.joblib')
+        percentiles_app = joblib.load('percentiles_app.joblib')
+        
+        # Get all department names the model was trained on
+        transformer_features = transformer_app.get_feature_names_out()
+        trained_departments = [f.replace('dept_names_', '') 
+                             for f in transformer_features if f.startswith('dept_names_')]
+        
+        # If no departments found in model, use a default list
+        if not trained_departments:
+            st.warning("No department features found in model. Using default departments.")
+            trained_departments = ["Marketing", "HR", "Sales", "Finance"]  # Default fallback
+        
+    except Exception as e:
+        st.error(f"Failed to load model files: {str(e)}")
+        st.stop()
 
     # Streamlit app title
     st.title("Employee Status Prediction App")
@@ -55,9 +65,14 @@ if st.session_state["logged_in"]:
             "Senior Engineer", "Senior Staff", "Assistant Engineer"
         ])
         
-        # Department selection
-        dept_names = st.sidebar.multiselect("Department Names", trained_departments, default=[trained_departments[0]])
-        no_of_departments = st.sidebar.number_input("Number of Departments", min_value=1, max_value=10, value=len(dept_names))
+        # Department selection with safe default
+        default_dept = trained_departments[0] if trained_departments else ""
+        dept_names = st.sidebar.multiselect(
+            "Department Names", 
+            trained_departments, 
+            default=[default_dept] if default_dept else []
+        )
+        no_of_departments = st.sidebar.number_input("Number of Departments", min_value=1, max_value=10, value=len(dept_names) if dept_names else 1
 
         # Create a dictionary from the input data
         input_data = {
@@ -68,7 +83,7 @@ if st.session_state["logged_in"]:
             "salary": salary,
             "Last_performance_rating": last_performance_rating,
             "title": title,
-            "dept_names": ", ".join(dept_names),
+            "dept_names": ", ".join(dept_names) if dept_names else default_dept,
             "no_of_departments": no_of_departments
         }
 
@@ -101,7 +116,7 @@ if st.session_state["logged_in"]:
                 # Create all expected department columns
                 for dept in trained_departments:
                     input_df_transformed[f"dept_names_{dept}"] = input_df_transformed['dept_names'].apply(
-                        lambda x: 1 if dept in x.split(', ') else 0
+                        lambda x: 1 if dept in str(x).split(', ') else 0
                     )
                 
                 # Now safely drop the original columns

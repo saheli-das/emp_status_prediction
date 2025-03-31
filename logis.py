@@ -55,7 +55,7 @@ if st.session_state["logged_in"]:
         ])
         
         # Use multiselect for department names
-        dept_names = st.sidebar.selectbox("Department Names", [
+        dept_names = st.sidebar.multiselect("Department Names", [
             "Marketing", "Human Resources", "Research", "Sales", 
             "Quality Management", "Production", "development", 
             "Finance", "Customer Service"

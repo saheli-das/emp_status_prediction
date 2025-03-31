@@ -104,22 +104,26 @@ if st.session_state["logged_in"]:
         
        
         
-        age_bins = [20, 35, 50, float('inf')]  # Exactly as in your model training
-        age_labels = ['20-35', '35-50', '50+']  # Must match original categories
+       
+        input_df['age_group'] = pd.Categorical(
+            input_df['age_group'],
+            categories=['20-35', '35-50', '50+'],  # Your original categories
+            ordered=True
+        )
         
+        #  Handle ages below 20 by mapping to '20-35' BEFORE categorization
+        input_df.loc[input_df['age'] < 20, 'age_group'] = '20-35'
         
+     
         input_df['age_group'] = pd.cut(
             input_df['age'],
-            bins=age_bins,
-            labels=age_labels,
+            bins=[20, 35, 50, float('inf')],
+            labels=['20-35', '35-50', '50+'],
             right=False
         )
         
-        ## Force any ages below 20 into the '20-35' category
-        input_df.loc[input_df['age'] < 20, 'age_group'] = '20-35'
         
-        ## Handle any remaining NaN values
-        input_df['age_group'] = input_df['age_group'].cat.add_categories(['20-35']).fillna('20-35')
+        input_df['age_group'] = input_df['age_group'].fillna('20-35')
 
         # Add a predict button
         if st.button("Predict"):

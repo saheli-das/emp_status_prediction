@@ -64,14 +64,6 @@ if st.session_state["logged_in"]:
         dept_names = st.sidebar.multiselect("Department Names", ALL_DEPARTMENTS, default=["Marketing"])
         no_of_departments = st.sidebar.number_input("Number of Departments", min_value=1, max_value=10, value=2)
 
-        # Create a function to properly encode departments
-        def encode_departments(selected_depts, all_depts):
-            """Create a dictionary of department features with 1/0 values"""
-            dept_dict = {f"dept_names_{dept}": 0 for dept in all_depts}
-            for dept in selected_depts:
-                dept_dict[f"dept_names_{dept}"] = 1
-            return dept_dict
-
         # Create a dictionary from the input data
         input_data = {
             "tenure": tenure,
@@ -81,22 +73,18 @@ if st.session_state["logged_in"]:
             "salary": salary,
             "Last_performance_rating": last_performance_rating,
             "title": title,
+            "dept_names": ", ".join(dept_names),  # Keep original format for transformer
             "no_of_departments": no_of_departments
         }
-        
-        # Add department encoding
-        input_data.update(encode_departments(dept_names, ALL_DEPARTMENTS))
 
         # Convert input data to a DataFrame
         input_df = pd.DataFrame([input_data])
 
         # Apply the same feature engineering steps as during training
-        # 2. Create adjusted bins that handle all cases:
         adjusted_bins = percentiles_app.copy()
         adjusted_bins[0] = -float('inf')  # Catch any values below original minimum
         adjusted_bins[-1] = float('inf')   # Catch any values above original maximum
         
-        # 3. Apply the categorization
         input_df['tenure_category'] = pd.cut(
             input_df['tenure'],
             bins=adjusted_bins,
@@ -104,7 +92,6 @@ if st.session_state["logged_in"]:
             include_lowest=True
         )
         
-        # 4. Handle any remaining NaN values (just in case)
         input_df['tenure_category'] = input_df['tenure_category'].cat.add_categories(['Invalid']).fillna('Invalid')
 
         # Create age_group based on bins
@@ -114,32 +101,32 @@ if st.session_state["logged_in"]:
 
         # Add a predict button
         if st.button("Predict"):
-            # Drop the original columns that were used for feature engineering
-            input_df.drop(['tenure', 'age'], axis=1, inplace=True, errors='ignore')
-            
             # Transform the input data using the saved transformer
-            input_transformed = transformer_app.transform(input_df)
+            try:
+                input_transformed = transformer_app.transform(input_df)
 
-            # Create a DataFrame from the transformed data
-            input_transformed_df = pd.DataFrame(input_transformed, columns=transformer_app.get_feature_names_out())
+                # Create a DataFrame from the transformed data
+                input_transformed_df = pd.DataFrame(input_transformed, columns=transformer_app.get_feature_names_out())
 
-            # Filter features based on importance
-            input_filtered = input_transformed_df[important_features_app]
+                # Filter features based on importance
+                input_filtered = input_transformed_df[important_features_app]
 
-            # Make predictions
-            predictions = best_model_app.predict(input_filtered)
+                # Make predictions
+                predictions = best_model_app.predict(input_filtered)
 
-            # Get prediction probabilities
-            probabilities = best_model_app.predict_proba(input_filtered)
+                # Get prediction probabilities
+                probabilities = best_model_app.predict_proba(input_filtered)
 
-            # Map prediction value to label
-            prediction_label = "leave" if predictions[0] == 1 else "stay"
-            probability = probabilities[0][1] if predictions[0] == 1 else probabilities[0][0]
+                # Map prediction value to label
+                prediction_label = "leave" if predictions[0] == 1 else "stay"
+                probability = probabilities[0][1] if predictions[0] == 1 else probabilities[0][0]
 
-            # Display the prediction
-            st.header("Prediction Result")
-            st.write(f"The predicted output is: **{prediction_label}**")
-            st.write(f"Probability: {probability:.2%}")
+                # Display the prediction
+                st.header("Prediction Result")
+                st.write(f"The predicted output is: **{prediction_label}**")
+                st.write(f"Probability: {probability:.2%}")
+            except Exception as e:
+                st.error(f"Error during prediction: {str(e)}")
         else:
             st.write("Click the **Predict** button to see the result.")
 
@@ -168,20 +155,9 @@ if st.session_state["logged_in"]:
                 columns_to_drop = [col for col in columns_to_drop if col in csv_df.columns]
                 csv_df.drop(columns=columns_to_drop, inplace=True)
 
-                # Function to process department names in the CSV
-                def process_departments(df):
-                    # Split department names if they're in a string format
-                    if isinstance(df['dept_names'], str):
-                        df['dept_names'] = df['dept_names'].str.split(', ')
-                    
-                    # Create department columns
-                    for dept in ALL_DEPARTMENTS:
-                        df[f'dept_names_{dept}'] = df['dept_names'].apply(lambda x: 1 if dept in x else 0)
-                    
-                    return df
-
-                # Process departments
-                csv_df = process_departments(csv_df)
+                # Ensure dept_names is in string format
+                if not isinstance(csv_df['dept_names'].iloc[0], str):
+                    csv_df['dept_names'] = csv_df['dept_names'].apply(lambda x: ", ".join(x) if isinstance(x, list) else str(x))
 
                 # Apply the same feature engineering steps as during training
                 csv_df['tenure_category'] = pd.cut(csv_df['tenure'], bins=percentiles_app, labels=['Low', 'Medium', 'High', 'Very High'], include_lowest=True)
@@ -189,56 +165,58 @@ if st.session_state["logged_in"]:
                 labels = ['20-35', '35-50', '50+']
                 csv_df['age_group'] = pd.cut(csv_df['age'], bins=bins, labels=labels, right=False)
 
-                # Drop original columns used for feature engineering
-                csv_df.drop(['tenure', 'age', 'dept_names'], axis=1, inplace=True, errors='ignore')
-
                 # Transform the entire DataFrame at once
                 st.write("Transforming data...")
-                input_transformed = transformer_app.transform(csv_df)
-                input_transformed_df = pd.DataFrame(input_transformed, columns=transformer_app.get_feature_names_out())
+                try:
+                    input_transformed = transformer_app.transform(csv_df)
+                    input_transformed_df = pd.DataFrame(input_transformed, columns=transformer_app.get_feature_names_out())
 
-                # Filter features based on importance
-                input_filtered = input_transformed_df[important_features_app]
+                    # Filter features based on importance
+                    input_filtered = input_transformed_df[important_features_app]
 
-                # Make predictions for the entire DataFrame
-                st.write("Making predictions...")
-                predictions = best_model_app.predict(input_filtered)
+                    # Make predictions for the entire DataFrame
+                    st.write("Making predictions...")
+                    predictions = best_model_app.predict(input_filtered)
 
-                # Get predicted probabilities for the "left" class (class 1)
-                probabilities = best_model_app.predict_proba(input_filtered)[:, 1]
+                    # Get predicted probabilities for the "left" class (class 1)
+                    probabilities = best_model_app.predict_proba(input_filtered)[:, 1]
 
-                # Add predictions and probabilities to the DataFrame
-                csv_df['prediction'] = ["leave" if pred == 1 else "stay" for pred in predictions]
-                csv_df['probability_of_leaving'] = probabilities  # Add probability of leaving
+                    # Add predictions and probabilities to the original DataFrame
+                    csv_df['prediction'] = ["leave" if pred == 1 else "stay" for pred in predictions]
+                    csv_df['probability_of_leaving'] = probabilities
 
-                # Display DataFrame in Streamlit
-                st.write("Predictions with Probabilities:")
-                st.dataframe(csv_df)
+                    # Display DataFrame in Streamlit
+                    st.write("Predictions with Probabilities:")
+                    st.dataframe(csv_df)
 
-                # Update progress
-                progress_bar.progress(100)
+                    # Update progress
+                    progress_bar.progress(100)
 
-                # Aggregate results
-                result_df = csv_df.groupby(['prediction', 'sex']).size().reset_index(name='count')
+                    # Aggregate results
+                    result_df = csv_df.groupby(['prediction', 'sex']).size().reset_index(name='count')
 
-                # Display the aggregated results
-                st.header("Prediction Results")
-                st.write(result_df)
+                    # Display the aggregated results
+                    st.header("Prediction Results")
+                    st.write(result_df)
 
-                # Visualize the results
-                st.header("Visualization")
+                    # Visualize the results
+                    st.header("Visualization")
 
-                # Bar chart: Number of employees who left/stayed by sex
-                fig, ax = plt.subplots(figsize=(10, 6))
-                sns.barplot(data=result_df, x='prediction', y='count', hue='sex', ax=ax)
-                ax.set_title("Number of Employees Who Leave/Stay by Sex")
-                ax.set_xlabel("Prediction")
-                ax.set_ylabel("Count")
-                st.pyplot(fig)
+                    # Bar chart: Number of employees who left/stayed by sex
+                    fig, ax = plt.subplots(figsize=(10, 6))
+                    sns.barplot(data=result_df, x='prediction', y='count', hue='sex', ax=ax)
+                    ax.set_title("Number of Employees Who Leave/Stay by Sex")
+                    ax.set_xlabel("Prediction")
+                    ax.set_ylabel("Count")
+                    st.pyplot(fig)
 
-                # Pie chart: Overall left vs stayed
-                overall_counts = result_df.groupby('prediction')['count'].sum()
-                fig, ax = plt.subplots(figsize=(6, 6))
-                ax.pie(overall_counts, labels=overall_counts.index, autopct='%1.1f%%', startangle=90)
-                ax.set_title("Overall Leave vs Stay")
-                st.pyplot(fig)
+                    # Pie chart: Overall left vs stayed
+                    overall_counts = result_df.groupby('prediction')['count'].sum()
+                    fig, ax = plt.subplots(figsize=(6, 6))
+                    ax.pie(overall_counts, labels=overall_counts.index, autopct='%1.1f%%', startangle=90)
+                    ax.set_title("Overall Leave vs Stay")
+                    st.pyplot(fig)
+
+                except Exception as e:
+                    st.error(f"Error during processing: {str(e)}")
+                    progress_bar.progress(0)

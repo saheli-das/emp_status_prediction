@@ -98,27 +98,15 @@ if st.session_state["logged_in"]:
                 # Make a copy of the input data
                 input_df_transformed = input_df.copy()
                 
-                # Get all expected department columns from the transformer
+                # Get all expected feature names from the transformer
                 transformer_features = transformer_app.get_feature_names_out()
-                dept_columns = [f for f in transformer_features if f.startswith('dept_names_')]
                 
-                # Process department names - create temporary list column
-                input_df_transformed['dept_names_list'] = input_df_transformed['dept_names'].str.split(', ')
+                # Process department names - let the transformer handle this
+                # Don't drop dept_names - the transformer expects it
                 
-                # Create all expected department columns
-                for dept_col in dept_columns:
-                    dept_name = dept_col.replace('dept_names_', '')
-                    input_df_transformed[dept_col] = input_df_transformed['dept_names_list'].apply(
-                        lambda x: 1 if dept_name in [d.strip() for d in x] else 0
-                    )
-                
-                # Now we can safely drop the original columns
-                cols_to_drop = ['dept_names', 'dept_names_list', 'tenure', 'age']
-                input_df_transformed.drop(columns=[col for col in cols_to_drop if col in input_df_transformed.columns], inplace=True)
-                
-                # Transform the input data
+                # Transform the input data using the saved transformer
                 input_transformed = transformer_app.transform(input_df_transformed)
-                input_transformed_df = pd.DataFrame(input_transformed, columns=transformer_app.get_feature_names_out())
+                input_transformed_df = pd.DataFrame(input_transformed, columns=transformer_features)
 
                 # Filter features based on importance
                 input_filtered = input_transformed_df[important_features_app]
@@ -158,7 +146,7 @@ if st.session_state["logged_in"]:
             else:
                 # Process data
                 with st.spinner('Processing data...'):
-                    # Drop unnecessary columns
+                    # Drop unnecessary columns (but keep dept_names)
                     cols_to_drop = ['emp_no', 'first_name', 'last_name', 'emp_title_id', 
                                   'dept_nos', 'birth_date', 'last_date', 'hire_date']
                     csv_df.drop(columns=[col for col in cols_to_drop if col in csv_df.columns], inplace=True)
@@ -177,21 +165,10 @@ if st.session_state["logged_in"]:
                         right=False
                     )
                     
-                    # Process department names
-                    transformer_features = transformer_app.get_feature_names_out()
-                    dept_columns = [f for f in transformer_features if f.startswith('dept_names_')]
-                    
-                    csv_df['dept_names_list'] = csv_df['dept_names'].str.split(',')
-                    for dept_col in dept_columns:
-                        dept_name = dept_col.replace('dept_names_', '')
-                        csv_df[dept_col] = csv_df['dept_names_list'].apply(
-                            lambda x: 1 if dept_name.strip() in [d.strip() for d in x] else 0
-                        )
-                    
-                    # Drop processed columns
-                    csv_df.drop(columns=['dept_names', 'dept_names_list', 'tenure', 'age'], inplace=True)
+                    # Drop only tenure and age (keep dept_names for transformer)
+                    csv_df.drop(columns=['tenure', 'age'], inplace=True)
 
-                    # Transform data
+                    # Transform data - let transformer handle dept_names
                     input_transformed = transformer_app.transform(csv_df)
                     input_transformed_df = pd.DataFrame(
                         input_transformed, 
@@ -224,23 +201,3 @@ if st.session_state["logged_in"]:
                     sns.histplot(csv_df['probability'], bins=20, ax=ax2)
                     ax2.set_title("Probability Distribution")
                     st.pyplot(fig2)
-
-                    # Department analysis
-                    if any(col.startswith('dept_names_') for col in csv_df.columns):
-                        dept_cols = [col for col in csv_df.columns if col.startswith('dept_names_')]
-                        dept_results = pd.concat([
-                            csv_df[col].rename('department').to_frame().assign(
-                                department=col.replace('dept_names_', ''),
-                                prediction=csv_df['prediction']
-                            ) for col in dept_cols
-                        ])
-                        
-                        fig3, ax3 = plt.subplots(figsize=(10, 6))
-                        sns.countplot(
-                            data=dept_results[dept_results['department'] == 1],
-                            x='department',
-                            hue='prediction',
-                            ax=ax3
-                        )
-                        ax3.set_title("Predictions by Department")
-                        st.pyplot(fig3)

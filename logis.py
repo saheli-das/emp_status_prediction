@@ -72,7 +72,14 @@ if st.session_state["logged_in"]:
             trained_departments, 
             default=[default_dept] if default_dept else []
         )
-        no_of_departments = st.sidebar.number_input("Number of Departments", min_value=1, max_value=10, value=len(dept_names) if dept_names else 1
+        
+        # Fixed line - added missing parenthesis
+        no_of_departments = st.sidebar.number_input(
+            "Number of Departments", 
+            min_value=1, 
+            max_value=10, 
+            value=len(dept_names) if dept_names else 1
+        )
 
         # Create a dictionary from the input data
         input_data = {

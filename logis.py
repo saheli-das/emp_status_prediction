@@ -77,7 +77,6 @@ if st.session_state["logged_in"]:
         input_df = pd.DataFrame([input_data])
 
         # Apply the same feature engineering steps as during training
-        # 1. Create tenure categories
         adjusted_bins = percentiles_app.copy()
         adjusted_bins[0] = -float('inf')
         adjusted_bins[-1] = float('inf')
@@ -90,7 +89,6 @@ if st.session_state["logged_in"]:
         )
         input_df['tenure_category'] = input_df['tenure_category'].cat.add_categories(['Invalid']).fillna('Invalid')
 
-        # 2. Create age groups
         bins = [20, 35, 50, float('inf')]
         labels = ['20-35', '35-50', '50+']
         input_df['age_group'] = pd.cut(input_df['age'], bins=bins, labels=labels, right=False)
@@ -98,19 +96,17 @@ if st.session_state["logged_in"]:
         # Add a predict button
         if st.button("Predict"):
             try:
-                # First, make a copy of the input data
+                # Make a copy of the input data
                 input_df_transformed = input_df.copy()
                 
-                # Handle department names - create all possible department columns
-                all_possible_depts = [
-                    "Marketing", "Human Resources", "Research", "Sales", 
-                    "Quality Management", "Production", "development", 
-                    "Finance", "Customer Service"
-                ]
+                # Get the expected department columns from the transformer
+                transformer_features = transformer_app.get_feature_names_out()
+                dept_columns = [f for f in transformer_features if f.startswith('dept_names_')]
                 
-                # Create columns for all possible departments
-                for dept in all_possible_depts:
-                    input_df_transformed[f"dept_names_{dept}"] = input_df_transformed['dept_names'].str.contains(dept).astype(int)
+                # Create department columns exactly as the model expects
+                for dept_col in dept_columns:
+                    dept_name = dept_col.replace('dept_names_', '')
+                    input_df_transformed[dept_col] = input_df_transformed['dept_names'].str.contains(dept_name).astype(int)
                 
                 # Drop the original dept_names column
                 input_df_transformed.drop(columns=['dept_names'], inplace=True)
@@ -119,36 +115,16 @@ if st.session_state["logged_in"]:
                 input_df_transformed.drop(columns=['tenure', 'age'], inplace=True)
                 
                 # Transform the input data using the saved transformer
-                # Get all feature names from the transformer
-                transformer_features = transformer_app.get_feature_names_out()
-                
-                # Create a DataFrame with all possible columns (including departments)
-                # First, get all features that are not department-related
-                non_dept_features = [f for f in transformer_features if not f.startswith('dept_names_')]
-                
-                # Create a DataFrame with zeros for all transformer features
-                full_features_df = pd.DataFrame(0, index=input_df_transformed.index, columns=transformer_features)
-                
-                # Fill in the values we have
-                for col in input_df_transformed.columns:
-                    if col in transformer_features:
-                        full_features_df[col] = input_df_transformed[col]
-                    elif col.startswith('dept_names_'):
-                        # Find matching department column in transformer features
-                        dept_name = col.replace('dept_names_', '')
-                        matching_col = f"dept_names_{dept_name}"
-                        if matching_col in transformer_features:
-                            full_features_df[matching_col] = input_df_transformed[col]
-                
+                input_transformed = transformer_app.transform(input_df_transformed)
+                input_transformed_df = pd.DataFrame(input_transformed, columns=transformer_app.get_feature_names_out())
+
                 # Filter features based on importance
-                input_filtered = full_features_df[important_features_app]
-                
+                input_filtered = input_transformed_df[important_features_app]
+
                 # Make predictions
                 predictions = best_model_app.predict(input_filtered)
-                
-                # Get prediction probabilities
                 probabilities = best_model_app.predict_proba(input_filtered)
-                
+
                 # Map prediction value to label
                 prediction_label = "leave" if predictions[0] == 1 else "stay"
                 probability = probabilities[0][1] if predictions[0] == 1 else probabilities[0][0]
@@ -183,95 +159,62 @@ if st.session_state["logged_in"]:
                 st.write("Processing CSV file...")
                 progress_bar = st.progress(0)
 
-                # Drop unnecessary columns (including 'left' if it exists)
+                # Drop unnecessary columns
                 columns_to_drop = ['emp_no', 'first_name', 'last_name', 'emp_title_id', 'dept_nos', 'birth_date', 'last_date', 'hire_date']
                 columns_to_drop = [col for col in columns_to_drop if col in csv_df.columns]
                 csv_df.drop(columns=columns_to_drop, inplace=True)
 
-                # Apply the same feature engineering steps as during training
+                # Apply feature engineering
                 csv_df['tenure_category'] = pd.cut(csv_df['tenure'], bins=percentiles_app, labels=['Low', 'Medium', 'High', 'Very High'], include_lowest=True)
                 bins = [20, 35, 50, float('inf')]
                 labels = ['20-35', '35-50', '50+']
                 csv_df['age_group'] = pd.cut(csv_df['age'], bins=bins, labels=labels, right=False)
+                csv_df.drop(columns=['tenure', 'age'], inplace=True)
 
-                # Step 3: Drop Unnecessary Columns
-                columns_to_remove = ['tenure', 'age']
-                csv_df.drop(columns=columns_to_remove, inplace=True)
-
-                # Handle department names - create all possible department columns
-                all_possible_depts = [
-                    "Marketing", "Human Resources", "Research", "Sales", 
-                    "Quality Management", "Production", "development", 
-                    "Finance", "Customer Service"
-                ]
+                # Get expected department columns from transformer
+                transformer_features = transformer_app.get_feature_names_out()
+                dept_columns = [f for f in transformer_features if f.startswith('dept_names_')]
                 
-                # Create columns for all possible departments
-                for dept in all_possible_depts:
-                    csv_df[f"dept_names_{dept}"] = csv_df['dept_names'].str.contains(dept).astype(int)
+                # Create department columns exactly as the model expects
+                for dept_col in dept_columns:
+                    dept_name = dept_col.replace('dept_names_', '')
+                    csv_df[dept_col] = csv_df['dept_names'].str.contains(dept_name).astype(int)
                 
-                # Drop the original dept_names column
                 csv_df.drop(columns=['dept_names'], inplace=True)
 
-                # Transform the data
+                # Transform data
                 st.write("Transforming data...")
-                
-                # Get all feature names from the transformer
-                transformer_features = transformer_app.get_feature_names_out()
-                
-                # Create a DataFrame with all possible columns (including departments)
-                full_features_df = pd.DataFrame(0, index=csv_df.index, columns=transformer_features)
-                
-                # Fill in the values we have
-                for col in csv_df.columns:
-                    if col in transformer_features:
-                        full_features_df[col] = csv_df[col]
-                    elif col.startswith('dept_names_'):
-                        # Find matching department column in transformer features
-                        dept_name = col.replace('dept_names_', '')
-                        matching_col = f"dept_names_{dept_name}"
-                        if matching_col in transformer_features:
-                            full_features_df[matching_col] = csv_df[col]
-                
-                # Filter features based on importance
-                input_filtered = full_features_df[important_features_app]
+                input_transformed = transformer_app.transform(csv_df)
+                input_transformed_df = pd.DataFrame(input_transformed, columns=transformer_app.get_feature_names_out())
 
-                # Make predictions for the entire DataFrame
+                # Filter features based on importance
+                input_filtered = input_transformed_df[important_features_app]
+
+                # Make predictions
                 st.write("Making predictions...")
                 predictions = best_model_app.predict(input_filtered)
-
-                # Get predicted probabilities for the "left" class (class 1)
                 probabilities = best_model_app.predict_proba(input_filtered)[:, 1]
 
-                # Add predictions and probabilities to the DataFrame
+                # Add predictions to DataFrame
                 csv_df['prediction'] = ["leave" if pred == 1 else "stay" for pred in predictions]
-                csv_df['probability_of_leaving'] = probabilities  # Add probability of leaving
+                csv_df['probability_of_leaving'] = probabilities
 
-                # Display DataFrame in Streamlit
+                # Display results
                 st.write("Predictions with Probabilities:")
                 st.dataframe(csv_df)
-
-                # Update progress
                 progress_bar.progress(100)
 
-                # Aggregate results
+                # Visualization
                 result_df = csv_df.groupby(['prediction', 'sex']).size().reset_index(name='count')
-
-                # Display the aggregated results
                 st.header("Prediction Results")
                 st.write(result_df)
 
-                # Visualize the results
                 st.header("Visualization")
-
-                # Bar chart: Number of employees who left/stayed by sex
                 fig, ax = plt.subplots(figsize=(10, 6))
                 sns.barplot(data=result_df, x='prediction', y='count', hue='sex', ax=ax)
                 ax.set_title("Number of Employees Who Leave/Stay by Sex")
-                ax.set_xlabel("Prediction")
-                ax.set_ylabel("Count")
                 st.pyplot(fig)
 
-                # Pie chart: Overall left vs stayed
                 overall_counts = result_df.groupby('prediction')['count'].sum()
                 fig, ax = plt.subplots(figsize=(6, 6))
                 ax.pie(overall_counts, labels=overall_counts.index, autopct='%1.1f%%', startangle=90)

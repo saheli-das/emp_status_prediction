@@ -84,19 +84,36 @@ if st.session_state["logged_in"]:
        
         
        
-        # Ensure the last percentile is large enough to handle any input
-        adjusted_percentiles = percentiles_app.copy()
-        adjusted_percentiles[-1] = float('inf')  # Make the last bin extend to infinity
+        # 2. Create adjusted bins that handle all cases:
+        adjusted_bins = percentiles_app.copy()
+        adjusted_bins[0] = -float('inf')  # Catch any values below original minimum
+        adjusted_bins[-1] = float('inf')   # Catch any values above original maximum
         
-        input_df['tenure_category'] = pd.cut(input_df['tenure'], 
-                                            bins=adjusted_percentiles, 
-                                            labels=['Low', 'Medium', 'High', 'Very High'], 
-                                            include_lowest=True)
+        # 3. Apply the categorization
+        input_df['tenure_category'] = pd.cut(
+            input_df['tenure'],
+            bins=adjusted_bins,
+            labels=['Low', 'Medium', 'High', 'Very High'],
+            include_lowest=True
+        )
+        
+        # 4. Handle any remaining NaN values (just in case)
+        input_df['tenure_category'] = input_df['tenure_category'].cat.add_categories(['Invalid']).fillna('Invalid')
 
-        # Create age_group based on bins
-        bins = [20, 35, 50, float('inf')]
-        labels = ['20-35', '35-50', '50+']
-        input_df['age_group'] = pd.cut(input_df['age'], bins=bins, labels=labels, right=False)
+       
+        age_bins = [-float('inf'), 20, 35, 50, float('inf')]
+        age_labels = ['<20', '20-35', '35-50', '50+']
+        
+        
+        input_df['age_group'] = pd.cut(
+            input_df['age'],
+            bins=age_bins,
+            labels=age_labels,
+            right=False
+        ).astype(str)  
+        
+        
+        input_df['age_group'] = input_df['age_group'].replace('nan', '<20')  # Force <20 category for very low values
 
         # Add a predict button
         if st.button("Predict"):

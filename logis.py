@@ -25,12 +25,18 @@ if not st.session_state["logged_in"]:
 
 # Show App Functionality Only If Logged In
 if st.session_state["logged_in"]:
-
     # Load the saved model and preprocessing objects
     best_model_app = joblib.load('best_model_app.joblib')
     transformer_app = joblib.load('transformer_app.joblib')
     important_features_app = joblib.load('important_features_app.joblib')
     percentiles_app = joblib.load('percentiles_app.joblib')
+
+    # Define all possible departments from the training data
+    ALL_DEPARTMENTS = [
+        "Marketing", "Human Resources", "Research", "Sales", 
+        "Quality Management", "Production", "development", 
+        "Finance", "Customer Service"
+    ]
 
     # Streamlit app title
     st.title("Prediction App")
@@ -42,7 +48,7 @@ if st.session_state["logged_in"]:
         # Input fields for user data
         st.sidebar.header("Input Features")
         tenure = st.sidebar.number_input("Tenure (in months)", min_value=0, max_value=1000, value=60)
-        age = st.sidebar.number_input("Age", min_value=18, max_value=100, value=40)
+        age = st.sidebar.number_input("Age(>=20)", min_value=20, max_value=100, value=40)
         sex = st.sidebar.selectbox("Sex", ["M", "F"])
         no_of_projects = st.sidebar.number_input("Number of Projects", min_value=1, max_value=100, value=5)
         salary = st.sidebar.number_input("Salary", min_value=0, value=50000)
@@ -55,13 +61,16 @@ if st.session_state["logged_in"]:
         ])
         
         # Use multiselect for department names
-        dept_names = st.sidebar.multiselect("Department Names", [
-            "Marketing", "Human Resources", "Research", "Sales", 
-            "Quality Management", "Production", "development", 
-            "Finance", "Customer Service"
-        ], default=["Marketing"])  # Set a default value if needed
-        
+        dept_names = st.sidebar.multiselect("Department Names", ALL_DEPARTMENTS, default=["Marketing"])
         no_of_departments = st.sidebar.number_input("Number of Departments", min_value=1, max_value=10, value=2)
+
+        # Create a function to properly encode departments
+        def encode_departments(selected_depts, all_depts):
+            """Create a dictionary of department features with 1/0 values"""
+            dept_dict = {f"dept_names_{dept}": 0 for dept in all_depts}
+            for dept in selected_depts:
+                dept_dict[f"dept_names_{dept}"] = 1
+            return dept_dict
 
         # Create a dictionary from the input data
         input_data = {
@@ -71,19 +80,17 @@ if st.session_state["logged_in"]:
             "no_of_projects": no_of_projects,
             "salary": salary,
             "Last_performance_rating": last_performance_rating,
-            "title": title,  # Include missing columns
-            "dept_names": ", ".join(dept_names),  # Join selected departments with a comma
-            "no_of_departments": no_of_departments  # Include missing columns
+            "title": title,
+            "no_of_departments": no_of_departments
         }
+        
+        # Add department encoding
+        input_data.update(encode_departments(dept_names, ALL_DEPARTMENTS))
 
         # Convert input data to a DataFrame
         input_df = pd.DataFrame([input_data])
 
         # Apply the same feature engineering steps as during training
-       
-       
-        
-       
         # 2. Create adjusted bins that handle all cases:
         adjusted_bins = percentiles_app.copy()
         adjusted_bins[0] = -float('inf')  # Catch any values below original minimum
@@ -100,18 +107,16 @@ if st.session_state["logged_in"]:
         # 4. Handle any remaining NaN values (just in case)
         input_df['tenure_category'] = input_df['tenure_category'].cat.add_categories(['Invalid']).fillna('Invalid')
 
-       
-        
-       
-        
-       
-       # Create age_group based on bins
+        # Create age_group based on bins
         bins = [20, 35, 50, float('inf')]
         labels = ['20-35', '35-50', '50+']
         input_df['age_group'] = pd.cut(input_df['age'], bins=bins, labels=labels, right=False)
 
         # Add a predict button
         if st.button("Predict"):
+            # Drop the original columns that were used for feature engineering
+            input_df.drop(['tenure', 'age'], axis=1, inplace=True, errors='ignore')
+            
             # Transform the input data using the saved transformer
             input_transformed = transformer_app.transform(input_df)
 
@@ -124,12 +129,17 @@ if st.session_state["logged_in"]:
             # Make predictions
             predictions = best_model_app.predict(input_filtered)
 
+            # Get prediction probabilities
+            probabilities = best_model_app.predict_proba(input_filtered)
+
             # Map prediction value to label
             prediction_label = "leave" if predictions[0] == 1 else "stay"
+            probability = probabilities[0][1] if predictions[0] == 1 else probabilities[0][0]
 
             # Display the prediction
             st.header("Prediction Result")
             st.write(f"The predicted output is: **{prediction_label}**")
+            st.write(f"Probability: {probability:.2%}")
         else:
             st.write("Click the **Predict** button to see the result.")
 
@@ -158,29 +168,37 @@ if st.session_state["logged_in"]:
                 columns_to_drop = [col for col in columns_to_drop if col in csv_df.columns]
                 csv_df.drop(columns=columns_to_drop, inplace=True)
 
+                # Function to process department names in the CSV
+                def process_departments(df):
+                    # Split department names if they're in a string format
+                    if isinstance(df['dept_names'], str):
+                        df['dept_names'] = df['dept_names'].str.split(', ')
+                    
+                    # Create department columns
+                    for dept in ALL_DEPARTMENTS:
+                        df[f'dept_names_{dept}'] = df['dept_names'].apply(lambda x: 1 if dept in x else 0)
+                    
+                    return df
+
+                # Process departments
+                csv_df = process_departments(csv_df)
+
                 # Apply the same feature engineering steps as during training
                 csv_df['tenure_category'] = pd.cut(csv_df['tenure'], bins=percentiles_app, labels=['Low', 'Medium', 'High', 'Very High'], include_lowest=True)
                 bins = [20, 35, 50, float('inf')]
                 labels = ['20-35', '35-50', '50+']
                 csv_df['age_group'] = pd.cut(csv_df['age'], bins=bins, labels=labels, right=False)
 
-
-
-                # Step 3: Drop Unnecessary Columns
-                columns_to_remove = ['tenure', 'age']
-                csv_df.drop(columns=columns_to_remove, inplace=True)
+                # Drop original columns used for feature engineering
+                csv_df.drop(['tenure', 'age', 'dept_names'], axis=1, inplace=True, errors='ignore')
 
                 # Transform the entire DataFrame at once
                 st.write("Transforming data...")
                 input_transformed = transformer_app.transform(csv_df)
                 input_transformed_df = pd.DataFrame(input_transformed, columns=transformer_app.get_feature_names_out())
 
-
-
                 # Filter features based on importance
                 input_filtered = input_transformed_df[important_features_app]
-
-
 
                 # Make predictions for the entire DataFrame
                 st.write("Making predictions...")

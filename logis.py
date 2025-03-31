@@ -72,7 +72,40 @@ if st.session_state["logged_in"]:
             "salary": salary,
             "Last_performance_rating": last_performance_rating,
             "title": title,  # Include missing columns
-            "dept_names": ", ".join(dept_names),  # Join selected departments with a comma
+            # In your Manual Input section, modify the department processing:
+
+            # 1. Get department selections
+            dept_names = st.sidebar.multiselect("Department Names", [
+                "Marketing", "Human Resources", "Research", "Sales",
+                "Quality Management", "Production", "development",
+                "Finance", "Customer Service"
+            ], default=["Marketing"])
+            
+            # 2. Format departments EXACTLY as your model expects
+            if len(dept_names) > 1:
+                # If multiple departments, format with comma+space like your training data
+                input_data['dept_names'] = ", ".join(sorted(dept_names))  # Sorted for consistency
+            else:
+                # Single department - just use the name
+                input_data['dept_names'] = dept_names[0] if dept_names else "Marketing"
+            
+            # 3. Ensure no_of_departments matches
+            input_data['no_of_departments'] = len(dept_names)
+            
+            # 4. Add validation to prevent unseen department combinations
+            known_department_combinations = [
+                "Marketing", 
+                "Human Resources",
+                "Research",
+                # Add all other SINGLE departments
+                "Marketing, Human Resources",  # Add KNOWN combinations from your training data
+                "Production, development",
+                # Add all other combinations that exist in your training data
+            ]
+            
+            if input_data['dept_names'] not in known_department_combinations:
+                st.warning(f"""Warning: Department combination '{input_data['dept_names']}' 
+                           was not in the training data. Results may be unreliable.""")
             "no_of_departments": no_of_departments  # Include missing columns
         }
 

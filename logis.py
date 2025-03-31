@@ -104,15 +104,15 @@ if st.session_state["logged_in"]:
                 dept_columns = [f for f in transformer_features if f.startswith('dept_names_')]
                 
                 # Create department columns exactly as the model expects
+                input_df_transformed['dept_names_list'] = input_df_transformed['dept_names'].str.split(', ')
                 for dept_col in dept_columns:
                     dept_name = dept_col.replace('dept_names_', '')
-                    input_df_transformed[dept_col] = input_df_transformed['dept_names'].str.contains(dept_name).astype(int)
+                    input_df_transformed[dept_col] = input_df_transformed['dept_names_list'].apply(
+                        lambda x: 1 if dept_name in x else 0
+                    )
                 
-                # Drop the original dept_names column
-                input_df_transformed.drop(columns=['dept_names'], inplace=True)
-                
-                # Drop the original tenure and age columns
-                input_df_transformed.drop(columns=['tenure', 'age'], inplace=True)
+                # Now safely drop the original columns
+                input_df_transformed.drop(columns=['dept_names', 'dept_names_list', 'tenure', 'age'], inplace=True)
                 
                 # Transform the input data using the saved transformer
                 input_transformed = transformer_app.transform(input_df_transformed)
@@ -176,11 +176,13 @@ if st.session_state["logged_in"]:
                 dept_columns = [f for f in transformer_features if f.startswith('dept_names_')]
                 
                 # Create department columns exactly as the model expects
+                csv_df['dept_names_list'] = csv_df['dept_names'].str.split(', ')
                 for dept_col in dept_columns:
                     dept_name = dept_col.replace('dept_names_', '')
-                    csv_df[dept_col] = csv_df['dept_names'].str.contains(dept_name).astype(int)
-                
-                csv_df.drop(columns=['dept_names'], inplace=True)
+                    csv_df[dept_col] = csv_df['dept_names_list'].apply(
+                        lambda x: 1 if dept_name in x else 0
+                    )
+                csv_df.drop(columns=['dept_names', 'dept_names_list'], inplace=True)
 
                 # Transform data
                 st.write("Transforming data...")

@@ -54,39 +54,20 @@ if st.session_state["logged_in"]:
             "Senior Engineer", "Senior Staff", "Assistant Engineer"
         ])
         
-        # Updated department selection and processing
+        # Department selection and processing
         dept_names = st.sidebar.multiselect("Department Names", [
             "Marketing", "Human Resources", "Research", "Sales",
             "Quality Management", "Production", "development",
             "Finance", "Customer Service"
         ], default=["Marketing"])
         
-        # Format departments exactly as model expects
+        # Format departments
         if len(dept_names) > 1:
-            # If multiple departments, format with comma+space like training data
-            input_data['dept_names'] = ", ".join(sorted(dept_names))  # Sorted for consistency
+            formatted_dept = ", ".join(sorted(dept_names))  # Sorted for consistency
         else:
-            # Single department - just use the name
-            input_data['dept_names'] = dept_names[0] if dept_names else "Marketing"
-
-        # Ensure no_of_departments matches
-        no_of_departments = len(dept_names)
+            formatted_dept = dept_names[0] if dept_names else "Marketing"
         
-        # Add validation for known department combinations
-        known_department_combinations = [
-            "Marketing", 
-            "Human Resources",
-            "Research",
-            "Sales",
-            "Quality Management",
-            "Production",
-            "development",
-            "Finance",
-            "Customer Service",
-            "Marketing, Human Resources",
-            "Production, development"
-            # Add all other combinations that exist in your training data
-        ]
+        no_of_departments = len(dept_names)
 
         # Create a dictionary from the input data
         input_data = {
@@ -97,13 +78,9 @@ if st.session_state["logged_in"]:
             "salary": salary,
             "Last_performance_rating": last_performance_rating,
             "title": title,
-            "dept_names": input_data['dept_names'],
+            "dept_names": formatted_dept,
             "no_of_departments": no_of_departments
         }
-
-        # Show warning if department combination wasn't in training data
-        if input_data['dept_names'] not in known_department_combinations:
-            st.warning(f"Warning: Department combination '{input_data['dept_names']}' was not in the training data. Results may be unreliable.")
 
         # Convert input data to a DataFrame
         input_df = pd.DataFrame([input_data])
@@ -146,6 +123,12 @@ if st.session_state["logged_in"]:
             # Display the prediction
             st.header("Prediction Result")
             st.write(f"The predicted output is: **{prediction_label}**")
+            
+            # Show probability if available
+            if hasattr(best_model_app, "predict_proba"):
+                proba = best_model_app.predict_proba(input_filtered)
+                st.write(f"Probability of leaving: {proba[0][1]:.2%}")
+                st.write(f"Probability of staying: {proba[0][0]:.2%}")
         else:
             st.write("Click the **Predict** button to see the result.")
 

@@ -102,6 +102,7 @@ if st.session_state["logged_in"]:
 
        
         
+       
         age_bins = [0, 20, 35, 50, float('inf')]
         age_labels = ['under_20', '20-35', '35-50', '50+']
         
@@ -115,13 +116,13 @@ if st.session_state["logged_in"]:
                 include_lowest=True
             )
             
-          
+           
             input_df['age_group'] = input_df['age_group'].cat.add_categories(['invalid_age']).fillna('under_20')
             
         except Exception as e:
             st.error(f"Age processing error: {str(e)}")
             # Fallback to default category
-            input_df['age_group'] = '20-35'  
+            input_df['age_group'] = '20-35'
 
         # Add a predict button
         if st.button("Predict"):

@@ -55,11 +55,11 @@ if st.session_state["logged_in"]:
         ])
         
         # Use multiselect for department names
-        dept_names = st.sidebar.multiselect("Department Names", [
+        dept_name = st.sidebar.selectbox("Department Name", [
             "Marketing", "Human Resources", "Research", "Sales", 
             "Quality Management", "Production", "development", 
             "Finance", "Customer Service"
-        ], default=["Marketing"])  # Set a default value if needed
+        ], index=0)
         
         no_of_departments = st.sidebar.number_input("Number of Departments", min_value=1, max_value=10, value=2)
 

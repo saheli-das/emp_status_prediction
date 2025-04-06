@@ -54,7 +54,7 @@ if st.session_state["logged_in"]:
             "Senior Engineer", "Senior Staff", "Assistant Engineer"
         ])
         
-        dept_name = st.sidebar.selectbox("Department Name", [
+        dept_names = st.sidebar.selectbox("Department Name", [
             "Marketing", "Human Resources", "Research", "Sales", 
             "Quality Management", "Production", "development", 
             "Finance", "Customer Service"

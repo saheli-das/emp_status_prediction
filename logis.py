@@ -42,7 +42,7 @@ if st.session_state["logged_in"]:
         # Input fields for user data
         st.sidebar.header("Input Features")
         tenure = st.sidebar.number_input("Tenure (in months)", min_value=0, max_value=1000, value=60)
-        age = st.sidebar.number_input("Age(>=20)", min_value=18, max_value=100, value=40)
+        age = st.sidebar.number_input("Age(>=20)", min_value=20, max_value=100, value=40)
         sex = st.sidebar.selectbox("Sex", ["M", "F"])
         no_of_projects = st.sidebar.number_input("Number of Projects", min_value=1, max_value=100, value=5)
         salary = st.sidebar.number_input("Salary", min_value=0, value=50000)
@@ -54,7 +54,6 @@ if st.session_state["logged_in"]:
             "Senior Engineer", "Senior Staff", "Assistant Engineer"
         ])
         
-        # Use multiselect for department names
         dept_name = st.sidebar.selectbox("Department Name", [
             "Marketing", "Human Resources", "Research", "Sales", 
             "Quality Management", "Production", "development", 

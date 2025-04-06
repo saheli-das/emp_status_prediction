@@ -71,7 +71,7 @@ if st.session_state["logged_in"]:
             "salary": salary,
             "Last_performance_rating": last_performance_rating,
             "title": title,  # Include missing columns
-            "dept_names": ", ".join(dept_names),  # Join selected departments with a comma
+            "dept_names": dept_names),  # Join selected departments with a comma
             "no_of_departments": no_of_departments  # Include missing columns
         }
 
